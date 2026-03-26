@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Heart & Lung Sound Classifier</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="page-header">
+    <div class="container">
+      <h1>🎧 Heart &amp; Lung Sound Classifier</h1>
+      <a class="analytics-btn" href="{{ url_for('analytics') }}">View Analytics 📊</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section>
+      <h2>Upload Audio</h2>
+      <form id="uploadForm" enctype="multipart/form-data">
+        <label for="soundType">Select Type:</label>
+        <select id="soundType" name="soundType" required>
+          <option value="">-- Choose --</option>
+          <option value="Heart">Heart Sound </option>
+          <option value="Lung">Lung Sound </option>
+        </select>
+
+        <input type="file" id="audioFile" name="audioFile" accept=".wav" required>
+        <button type="submit">Analyze 🔍</button>
+      </form>
+    </section>
+
+    <section id="resultSection" class="hidden">
+      <h2>Prediction Result</h2>
+      <p id="predictionText">Result will appear here...</p>
+
+      <div class="plots">
+        <div>
+          <h3>Waveform</h3>
+          <img id="waveformPlot" alt="Waveform Plot">
+        </div>
+        <div>
+          <h3>MFCC Spectrogram</h3>
+          <img id="mfccPlot" alt="MFCC Plot">
+        </div>
+      </div>
+
+      <button id="downloadReportBtn" class="hidden">
+        Download Report 📄
+      </button>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Developed by <strong>Amrutha G</strong> © 2025</p>
+  </footer>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const downloadBtn = document.getElementById('downloadReportBtn');
+    let lastPrediction = "";
+    let lastWaveform = "";
+    let lastMFCC = "";
+    let lastSoundType = "";
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+
+      document.getElementById('predictionText').textContent = "Processing... ⏳";
+      document.getElementById('resultSection').classList.remove('hidden');
+
+      const response = await fetch('/predict', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      lastPrediction = data.result;
+      lastWaveform = data.waveform_url;
+      lastMFCC = data.mfcc_url;
+      lastSoundType = document.getElementById('soundType').value;
+
+      document.getElementById('predictionText').textContent = data.result;
+      document.getElementById('waveformPlot').src = data.waveform_url;
+      document.getElementById('mfccPlot').src = data.mfcc_url;
+      downloadBtn.classList.remove('hidden');
+    });
+
+    downloadBtn.addEventListener('click', async () => {
+      const formData = new FormData();
+      formData.append("prediction", lastPrediction);
+      formData.append("sound_type", lastSoundType);
+      formData.append("waveform", lastWaveform);
+      formData.append("mfcc", lastMFCC);
+
+      const response = await fetch('/download_report', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      window.location.href = data.report_url;
+    });
+  </script>
+</body>
+</html>

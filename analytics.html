@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Heart & Lung Dataset Analytics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="page-header">
+    <div class="container">
+      <h1>📊 Heart &amp; Lung Dataset Analytics</h1>
+      <a class="back-btn" href="{{ url_for('home') }}">← Back to Home</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="overview">
+      <h2>Overview</h2>
+      <p><strong>Heart Dataset:</strong> {{ hs_total }}</p>
+      <p><strong>Lung Dataset:</strong> {{ ls_total }}</p>
+      <p><em>Visualization Loaded</em></p>
+    </section>
+
+    <section>
+      <h2>Heart Sound Charts</h2>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>Gender Distribution</h3>
+          <img src="{{ url_for('static', filename='analytics/heart_gender.png') }}" alt="Heart Gender Distribution">
+        </div>
+        <div class="chart-card">
+          <h3>Condition Distribution</h3>
+          <img src="{{ url_for('static', filename='analytics/heart_condition.png') }}" alt="Heart Condition Distribution">
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>Abnormal Types</h3>
+          <img src="{{ url_for('static', filename='analytics/heart_abnormal.png') }}" alt="Heart Abnormal Types">
+        </div>
+      </div>
+
+      <h2>Lung Sound Charts</h2>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>Gender Distribution</h3>
+          <img src="{{ url_for('static', filename='analytics/lung_gender.png') }}" alt="Lung Gender Distribution">
+        </div>
+        <div class="chart-card">
+          <h3>Condition Distribution</h3>
+          <img src="{{ url_for('static', filename='analytics/lung_condition.png') }}" alt="Lung Condition Distribution">
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>Abnormal Types</h3>
+          <img src="{{ url_for('static', filename='analytics/lung_abnormal.png') }}" alt="Lung Abnormal Types">
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2025 Heart &amp; Lung Sound Project | Analytics Dashboard</p>
+  </footer>
+</body>
+</html>
