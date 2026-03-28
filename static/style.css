@@ -1,0 +1,165 @@
+:root {
+    --primary: #1e3a8a;
+    --accent: #2563eb;
+    --muted: #f0f4ff;
+    --card: #ffffff;
+    --text: #0f172a;
+    --soft: #e6eefc;
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    font-family: "Poppins", system-ui, Arial, sans-serif;
+    background: linear-gradient(135deg, var(--muted) 0%, #ffffff 100%);
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.page-header {
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    color: white;
+    padding: 20px 0;
+    box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08);
+}
+
+.page-header .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.back-btn,
+.analytics-btn {
+    background: white;
+    color: var(--primary);
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+
+/* main card */
+
+main.container {
+    background: var(--card);
+    margin: 18px auto;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
+}
+
+
+/* charts */
+
+.chart-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.chart-card {
+    flex: 1 1 calc(50% - 20px);
+    background: var(--soft);
+    padding: 14px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    text-align: center;
+}
+
+.chart-card img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 8px auto;
+}
+
+
+/* upload form */
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 560px;
+}
+
+input[type=file],
+select,
+button {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #dbeafe;
+}
+
+button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+button:hover {
+    transform: translateY(-1px);
+}
+
+
+/* plots on main page */
+
+.plots {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.plots img {
+    width: 360px;
+    max-width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hidden {
+    display: none;
+}
+
+.site-footer {
+    background: var(--primary);
+    color: white;
+    text-align: center;
+    padding: 12px;
+    margin-top: 20px;
+}
+
+
+/* small screens */
+
+@media (max-width:780px) {
+    .chart-card {
+        flex: 1 1 100%;
+    }
+    .page-header .container {
+        flex-direction: column;
+        row-gap: 12px;
+        align-items: flex-start;
+    }
+}
