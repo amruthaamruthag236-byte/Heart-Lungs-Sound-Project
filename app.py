@@ -5,7 +5,8 @@ import numpy as np
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
-import matplotlib.use('Agg')   
+import matplotlib
+matplotlib.use('Agg')   
 import pandas as pd
 
 from flask import Flask, render_template, request, jsonify
