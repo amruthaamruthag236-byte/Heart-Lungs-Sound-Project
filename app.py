@@ -1,60 +1,51 @@
 import os
 import uuid
-import joblib
 import numpy as np
 import librosa
 import librosa.display
-import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')   
-import pandas as pd
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 from flask import Flask, render_template, request, jsonify
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
+from tensorflow.keras.models import load_model
 
+# ---------------- APP SETUP ----------------
 app = Flask(__name__)
 
-# ✅ FIX: Use current directory (works in Render)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
-SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
+MODEL_PATH = os.path.join(BASE_DIR, "cnn_model.h5")
 
 UPLOAD_DIR = os.path.join(BASE_DIR, "static/uploads")
 PLOT_DIR = os.path.join(BASE_DIR, "static/plots")
-REPORT_DIR = os.path.join(BASE_DIR, "static/reports")
-ANALYTICS_DIR = os.path.join(BASE_DIR, "static/analytics")
 
-# create folders
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PLOT_DIR, exist_ok=True)
-os.makedirs(REPORT_DIR, exist_ok=True)
-os.makedirs(ANALYTICS_DIR, exist_ok=True)
 
-# load model
+# ---------------- LOAD MODEL ----------------
 try:
-    model = joblib.load(MODEL_PATH)
-    scaler = joblib.load(SCALER_PATH)
-    print("✅ Model loaded")
+    model = load_model(MODEL_PATH)
+    print("✅ CNN Model Loaded")
 except Exception as e:
     print("⚠️ Model load error:", e)
     model = None
-    scaler = None
 
+# ---------------- FEATURE EXTRACTION ----------------
+def extract_spectrogram(file_path):
+    y, sr = librosa.load(file_path, duration=5, sr=22050)
 
-def extract_features(file_path, sound_type):
-    y, sr = librosa.load(file_path, duration=5, sr=None)
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40)
-    features = np.hstack([np.mean(mfcc, axis=1), np.std(mfcc, axis=1)])
-    features = np.append(features, 0 if sound_type == "Heart" else 1)
-    return features, y, sr, mfcc
+    mel = librosa.feature.melspectrogram(y=y, sr=sr)
+    mel_db = librosa.power_to_db(mel, ref=np.max)
 
+    mel_db = np.resize(mel_db, (128, 128))
 
+    return mel_db, y, sr
+
+# ---------------- ROUTES ----------------
 @app.route("/")
 def home():
-    return render_template("index.html")   # MUST be inside templates/
-
+    return render_template("index.html")
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -62,49 +53,57 @@ def predict():
         return jsonify({"error": "No file"}), 400
 
     file = request.files["audioFile"]
-    sound_type = request.form.get("soundType", "Heart")
 
     filename = str(uuid.uuid4()) + ".wav"
     file_path = os.path.join(UPLOAD_DIR, filename)
     file.save(file_path)
 
-    features, y, sr, mfcc = extract_features(file_path, sound_type)
+    # Extract spectrogram
+    spec, y, sr = extract_spectrogram(file_path)
 
+    # Prepare for model
+    spec = spec.reshape(1, 128, 128, 1)
+
+    # Prediction
     result = "Model not available"
-    if model and scaler:
-        features_scaled = scaler.transform([features])
-        pred = model.predict(features_scaled)[0]
-        result = "Normal ❤️" if pred == 1 else "Abnormal ⚠️"
+    if model:
+        pred = model.predict(spec)
+        pred_class = np.argmax(pred)
+        result = "Normal ❤️" if pred_class == 1 else "Abnormal ⚠️"
 
-    # plots
+    # ---------------- PLOTS ----------------
     wf_name = str(uuid.uuid4()) + ".png"
-    mfcc_name = str(uuid.uuid4()) + ".png"
+    spec_name = str(uuid.uuid4()) + ".png"
 
     wf_path = os.path.join(PLOT_DIR, wf_name)
-    mfcc_path = os.path.join(PLOT_DIR, mfcc_name)
+    spec_path = os.path.join(PLOT_DIR, spec_name)
 
+    # Waveform
     plt.figure()
     librosa.display.waveshow(y, sr=sr)
+    plt.title("Waveform")
     plt.savefig(wf_path)
     plt.close()
 
+    # Spectrogram
     plt.figure()
-    librosa.display.specshow(mfcc, sr=sr)
-    plt.savefig(mfcc_path)
+    librosa.display.specshow(spec[0][:,:,0], sr=sr)
+    plt.title("Mel Spectrogram")
+    plt.colorbar()
+    plt.savefig(spec_path)
     plt.close()
 
     return jsonify({
         "result": result,
         "waveform_url": "/static/plots/" + wf_name,
-        "mfcc_url": "/static/plots/" + mfcc_name
+        "mfcc_url": "/static/plots/" + spec_name
     })
 
-
+# ---------------- ANALYTICS PAGE ----------------
 @app.route("/analytics")
 def analytics():
     return render_template("analytics.html")
 
-
-# ✅ IMPORTANT for Render
+# ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
