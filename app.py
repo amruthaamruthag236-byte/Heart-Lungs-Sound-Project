@@ -6,7 +6,8 @@ import librosa.display
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import tensorflow as tf
+import joblib
+
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 
@@ -17,7 +18,7 @@ app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MODEL_PATH = os.path.join(BASE_DIR, "cnn_model.h5")
+MODEL_PATH = os.path.join(BASE_DIR, "rf_model.pkl")
 
 UPLOAD_DIR = os.path.join(BASE_DIR, "static/uploads")
 PLOT_DIR = os.path.join(BASE_DIR, "static/plots")
@@ -29,20 +30,18 @@ os.makedirs(REPORT_DIR, exist_ok=True)
 
 # ---------------- LOAD MODEL ----------------
 try:
-    model = tf.keras.models.load_model(MODEL_PATH)
-    print("✅ CNN Model loaded")
+    model = joblib.load(MODEL_PATH)
+    print("✅ Random Forest Model loaded")
 except Exception as e:
     print("❌ Model load error:", e)
     model = None
 
 
 # ---------------- FEATURE EXTRACTION ----------------
-def extract_spectrogram(file_path):
-    y, sr = librosa.load(file_path, duration=5, sr=22050)
-    mel = librosa.feature.melspectrogram(y=y, sr=sr)
-    mel_db = librosa.power_to_db(mel, ref=np.max)
-    mel_db = np.resize(mel_db, (128, 128))
-    return mel_db.reshape(1, 128, 128, 1), y, sr
+def extract_features(file_path):
+    y, sr = librosa.load(file_path, duration=5)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40)
+    return np.mean(mfcc.T, axis=0), y, sr
 
 
 # ---------------- ROUTES ----------------
@@ -51,7 +50,7 @@ def home():
     return render_template("index.html")
 
 
-# ✅ FIXED PREDICT
+# ✅ PREDICT
 @app.route("/predict", methods=["POST"])
 def predict():
     if "audioFile" not in request.files:
@@ -64,14 +63,13 @@ def predict():
     file.save(file_path)
 
     # Extract features
-    spec, y, sr = extract_spectrogram(file_path)
+    features, y, sr = extract_features(file_path)
 
     prediction_label = "Model not available"
 
     if model:
-        pred = model.predict(spec)
-        pred_class = np.argmax(pred)
-        prediction_label = "Normal ❤️" if pred_class == 1 else "Abnormal ⚠️"
+        pred = model.predict(features.reshape(1, -1))[0]
+        prediction_label = "Normal ❤️" if pred == 1 else "Abnormal ⚠️"
 
     # ---------------- PLOTS ----------------
     wf_name = str(uuid.uuid4()) + ".png"
@@ -89,7 +87,9 @@ def predict():
 
     # Spectrogram
     plt.figure()
-    librosa.display.specshow(spec[0][:, :, 0], sr=sr)
+    spec = librosa.feature.melspectrogram(y=y, sr=sr)
+    spec_db = librosa.power_to_db(spec, ref=np.max)
+    librosa.display.specshow(spec_db, sr=sr)
     plt.title("Mel Spectrogram")
     plt.colorbar()
     plt.savefig(spec_path)
@@ -102,7 +102,7 @@ def predict():
     })
 
 
-# ✅ SEPARATE REPORT ROUTE (IMPORTANT)
+# ✅ REPORT DOWNLOAD
 @app.route("/download_report", methods=["POST"])
 def download_report():
     prediction = request.form.get("prediction", "N/A")
