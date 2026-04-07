@@ -1,91 +1,68 @@
-# main.py (corrected training script)
-
 import os
 import numpy as np
-import pandas as pd
 import librosa
+import tensorflow as tf
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
-from imblearn.over_sampling import SMOTE
-import joblib
-import warnings
-warnings.filterwarnings("ignore")
 
-DATA_ROOT = r"C:\Users\Amrutha\Downloads\Heart_Lung_Sound_Project"
-HS_DIR = os.path.join(DATA_ROOT, "dataset", "HS")
-LS_DIR = os.path.join(DATA_ROOT, "dataset", "LS")
+DATA_ROOT = "dataset"
+HS_DIR = os.path.join(DATA_ROOT, "HS")
+LS_DIR = os.path.join(DATA_ROOT, "LS")
 
-def extract_features(file_path, label, sound_type):
+X = []
+y = []
+
+def extract_spectrogram(file_path):
     try:
-        y, sr = librosa.load(file_path, duration=5, sr=None)
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40)
-        features = np.hstack([np.mean(mfcc, axis=1), np.std(mfcc, axis=1)])
-        features = np.append(features, 0 if sound_type == "Heart" else 1)
-        return features, label
-    except Exception as e:
-        print("Error:", file_path, e)
-        return None, None
+        y_audio, sr = librosa.load(file_path, duration=5, sr=22050)
+        mel = librosa.feature.melspectrogram(y=y_audio, sr=sr)
+        mel_db = librosa.power_to_db(mel, ref=np.max)
+        mel_db = np.resize(mel_db, (128, 128))
+        return mel_db
+    except:
+        return None
 
-data, labels = [], []
+print("🔹 Processing Heart Sounds...")
+for f in tqdm(os.listdir(HS_DIR)):
+    if f.endswith(".wav"):
+        label = 0 if "abnormal" in f.lower() else 1
+        spec = extract_spectrogram(os.path.join(HS_DIR, f))
+        if spec is not None:
+            X.append(spec)
+            y.append(label)
 
-print("\n🔹 Extracting Heart Sound features...")
-if os.path.exists(HS_DIR):
-    for f in tqdm(os.listdir(HS_DIR)):
-        if f.lower().endswith(".wav"):
-            # better filename detection for label
-            lab = "normal" if any(k in f.lower() for k in ["normal", "_n_", "-n-"]) else "abnormal"
-            feat, lab2 = extract_features(os.path.join(HS_DIR, f), lab, "Heart")
-            if feat is not None:
-                data.append(feat)
-                labels.append(lab2)
+print("🔹 Processing Lung Sounds...")
+for f in tqdm(os.listdir(LS_DIR)):
+    if f.endswith(".wav"):
+        label = 0 if "abnormal" in f.lower() else 1
+        spec = extract_spectrogram(os.path.join(LS_DIR, f))
+        if spec is not None:
+            X.append(spec)
+            y.append(label)
 
-print("\n🔹 Extracting Lung Sound features...")
-if os.path.exists(LS_DIR):
-    for f in tqdm(os.listdir(LS_DIR)):
-        if f.lower().endswith(".wav"):
-            lab = "normal" if any(k in f.lower() for k in ["normal", "_n_", "-n-"]) else "abnormal"
-            feat, lab2 = extract_features(os.path.join(LS_DIR, f), lab, "Lung")
-            if feat is not None:
-                data.append(feat)
-                labels.append(lab2)
+X = np.array(X).reshape(-1, 128, 128, 1)
+y = np.array(y)
 
-if len(data) == 0:
-    raise SystemExit("No audio features extracted. Check HS_DIR and LS_DIR paths and .wav files.")
+print("✅ Total samples:", len(X))
 
-df = pd.DataFrame(data)
-df["label"] = labels
+# CNN MODEL
+model = tf.keras.models.Sequential([
+    tf.keras.layers.Conv2D(32, (3,3), activation='relu', input_shape=(128,128,1)),
+    tf.keras.layers.MaxPooling2D(),
 
-print("\n✅ Total extracted samples:", df.shape)
+    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(),
 
-X = df.drop("label", axis=1)
-y = LabelEncoder().fit_transform(df["label"])
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(2, activation='softmax')
+])
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, stratify=y, random_state=42
-)
+model.fit(X, y, epochs=10, batch_size=16)
 
-smote = SMOTE(random_state=42)
-X_train_bal, y_train_bal = smote.fit_resample(X_train, y_train)
+model.save("cnn_model.h5")
 
-model = RandomForestClassifier(n_estimators=400, random_state=42)
-model.fit(X_train_bal, y_train_bal)
-
-y_pred = model.predict(X_test)
-print("\n🎯 Accuracy:", round(accuracy_score(y_test, y_pred) * 100, 2), "%")
-print(classification_report(y_test, y_pred))
-
-MODEL_PATH = os.path.join(DATA_ROOT, "model.pkl")
-SCALER_PATH = os.path.join(DATA_ROOT, "scaler.pkl")
-
-joblib.dump(model, MODEL_PATH)
-joblib.dump(scaler, SCALER_PATH)
-
-print("\n✅ Model saved to:", MODEL_PATH)
-print("✅ Scaler saved to:", SCALER_PATH)
-print("🚀 Training complete!")
+print("✅ CNN model saved as cnn_model.h5")
