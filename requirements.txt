@@ -6,3 +6,4 @@ pandas
 scikit-learn
 joblib
 reportlab
+tensorflow-cpu==2.12.0
