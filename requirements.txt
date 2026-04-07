@@ -6,4 +6,4 @@ pandas
 scikit-learn
 joblib
 reportlab
-tensorflow==2.12.0
+
